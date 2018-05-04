@@ -1,0 +1,176 @@
+/* Программа C ++ для реализации алгоритма Quick Hull найти выпуклый корпус. */
+#include <fstream>
+#include <set>
+#include <iostream>
+#include <vector>
+using namespace std;
+
+/* множество Pair - пары целых чисел */
+#define Pair pair<double, double>
+
+/* Сохраняет результаты (точки МВО) */
+set <Pair> hull;
+
+vector <Pair> Anser;
+
+/* Возвращает сторону точки p относительно прямой, соединяющей точки p1 и p2. */
+int findSide(Pair p1, Pair p2, Pair p)
+{
+	double val = (p.second - p1.second) * (p2.first - p1.first) -
+		(p2.second - p1.second) * (p.first - p1.first);
+	if (val > 0)
+		return 1;
+	if (val < 0)
+		return -1;
+	return 0;
+}
+
+/* Вспомогательная функция, так как точки double и double отказываются объединяться */
+int Find_Side(double p1x, double p1y, double px, double py, double p2x, double p2y)
+{
+	double val = (py - p1y) * (p2x - p1x) -
+		(p2y - p1y) * (px - p1x);
+	if (val > 0)
+		return 1;
+	if (val < 0)
+		return -1;
+	return 0;
+}
+
+/* Возвращает квадрат расстояния между p1 и p2. */
+double dist(Pair p, Pair q)
+{
+	return (p.second - q.second) * (p.second - q.second) +
+		(p.first - q.first) * (p.first - q.first);
+}
+
+/* Возвращает значение, пропорциональное расстоянию между точкой p и
+линией, соединяющей точки p1 и p2 */
+double lineDist(Pair p1, Pair p2, Pair p)
+{
+	return abs((p.second - p1.second) * (p2.first - p1.first) -
+		(p2.second - p1.second) * (p.first - p1.first));
+}
+
+/* Конечными точками линии L являются p1 и p2. Side может иметь значение 1 или -1.
+Эта переменная определяет с какой строны от L находится точка */
+void quickHull(Pair a[], int n, Pair p1, Pair p2, int side)
+{
+	int ind = -1;
+	double max_dist = 0;
+
+	/* поиск точки с максимальным расстоянием от L,
+	а также на указанной стороне L. */
+	for (int i = 0; i<n; i++)
+	{
+		double temp = lineDist(p1, p2, a[i]);
+		if (findSide(p1, p2, a[i]) == side && temp > max_dist)
+		{
+			ind = i;
+			max_dist = temp;
+		}
+	}
+
+	/* Если точка не найдена, добавляем конечные точки из L в МВО. */
+	if (ind == -1)
+	{
+		hull.insert(p1);
+		hull.insert(p2);
+		return;
+	}
+
+	/* Повторить для двух частей, разделенных точкой a[ind] */
+	quickHull(a, n, a[ind], p1, -findSide(a[ind], p1, p2));
+	quickHull(a, n, a[ind], p2, -findSide(a[ind], p2, p1));
+}
+
+void printHull(Pair a[], int n)
+{
+	/* если точек нет - оболочки тоже нет */
+	if (n == 0) return;
+
+	/* если точка одна - в МВО тоже будет только эта точка */
+	if (n == 1)
+	{
+		hull.insert(a[0]);
+	}
+
+	/* если точка две - в МВО также будут только они,
+	если они совпадаю, точка будет только одна */
+	if (n == 2)
+	{
+		hull.insert(a[0]);
+		if (a[0].first != a[1].first || a[0].second != a[1].second)
+			hull.insert(a[1]);
+	}
+
+	/* a [i].second -> y - координата i - й точки */
+
+	/* Поиск точек с минимальной и максимальной координатами по x */
+	int min_x = 0, max_x = 0;
+	for (int i = 1; i<n; i++)
+	{
+		if (a[i].first < a[min_x].first || (a[i].first == a[min_x].first && a[i].second < a[min_x].second))
+			min_x = i;
+		if (a[i].first > a[max_x].first || (a[i].first == a[max_x].first && a[i].second > a[max_x].second))
+			max_x = i;
+	}
+
+	/* Рекурсивно находим точки, принадлежащие МВО,
+	на одной стороне от линии, соединяющей a[min_x] и a[max_x] */
+	quickHull(a, n, a[min_x], a[max_x], 1);
+
+	/* Рекурсивно находим точки, принадлежащие МВО,
+	на другой стороне от линии, соединяющей a[min_x] и a[max_x] */
+	quickHull(a, n, a[min_x], a[max_x], -1);
+
+	/* Вывод полученных точек на экран */
+	/* Так как итоговое множество точек сохраняется с помощью set,
+	а в set все точки сортируются нужно выводить их в правильном порядке*/
+	/* Стоит сказать, что сам алгоритм работает корректно, только set не совсем подходит для данной задачи */
+	cout << "The points in Convex Hull are:\n";
+
+	double Temp1x = (*hull.begin()).first; /* Координаты первой точки */
+	double Temp1y = (*hull.begin()).second;
+	Pair Temp2;
+	for (auto now = hull.begin(); now != hull.end(); now++) {
+		Temp2 = *now; /* Координаты последней точки */
+	}
+
+	while (!hull.empty())
+	{
+		double Tempx = (*hull.begin()).first;
+		double Tempy = (*hull.begin()).second;
+		if (Find_Side(Temp1x, Temp1y, Tempx, Tempy, Temp2.first, Temp2.second) == 1) {
+			Anser.push_back({ Tempx, Tempy }); /* если точка находится над прямой */
+			hull.erase(hull.begin()); /* её не выводим, но сохраняем в дополнительный вектор */
+		}
+		else {
+			cout << "(" << (*hull.begin()).first << "; " /* если точка находится под прямой */
+				<< (*hull.begin()).second << ")\n"; /* выводим её */
+			hull.erase(hull.begin());
+		}
+	}
+	for (int i = Anser.size() - 1; i >= 0; i--) { /* Выводим собранный вектор задом наперёд */
+		cout << "(" << Anser[i].first << "; "
+			<< Anser[i].second << ")\n";
+	}
+	/* Такой вывод потребует О(n) времени (как обычный вывод) и  О(n) дополнительной памяти*/
+}
+
+/* Код драйвера */
+int main()
+{
+	int n;
+	cin >> n;
+	Pair* a = new Pair[n];
+
+	for (int i = 0; i < n; i++) {
+		double temp1;
+		double temp2;
+		cin >> temp1 >> temp2;
+		a[i] = { temp1, temp2 };
+	}
+	printHull(a, n);
+	system("pause");
+}
